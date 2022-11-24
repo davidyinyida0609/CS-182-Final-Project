@@ -794,6 +794,8 @@ class MultimodalGenerativeCVAE(object):
         :param gmm_mode: If True: The mode of the GMM is sampled.
         :return: GMM2D. If mode is Predict, also samples from the GMM.
         """
+        # TODO replace dynamic integration with residual connection
+        
         ph = prediction_horizon
         pred_dim = self.pred_state_length
 
@@ -852,7 +854,7 @@ class MultimodalGenerativeCVAE(object):
                 corr_t.reshape(
                     num_samples, num_components, -1
                 ).permute(0, 2, 1).reshape(-1, num_components))
-
+            #TODO we need to change dec_inputs here.
             if self.hyperparams['incl_robot_node']:
                 dec_inputs = [zx, a_t, y_r[:, j].repeat(num_samples * num_components, 1)]
             else:

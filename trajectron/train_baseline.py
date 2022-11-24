@@ -114,7 +114,7 @@ def main():
         train_env.attention_radius[(node_type1, node_type2)] = float(attention_radius)
 
     if train_env.robot_type is None and hyperparams['incl_robot_node']:
-        train_env.robot_type = train_env.NodeType[0]  # TODO: Make more general, allow the user to specify?
+        train_env.robot_type = train_env.NodeType[0] 
         for scene in train_env.scenes:
             scene.add_robot_from_nodes(train_env.robot_type)
 
