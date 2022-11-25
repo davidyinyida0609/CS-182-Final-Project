@@ -265,7 +265,7 @@ def main():
                 optimizer[node_type].zero_grad()
                 # TODO for implementing mixup
                 mixed_up_batch, lam = mixup(batch, batch_copy)
-                train_loss = trajectron.train_loss(batch, node_type)
+                train_loss = trajectron.train_loss(mixed_up_batch, node_type)
                 pbar.set_description(f"Epoch {epoch}, {node_type} L: {train_loss.item():.2f} Lambda: {lam:.2f}")
                 train_loss.backward()
                 # Clipping gradients.

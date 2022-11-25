@@ -1,3 +1,4 @@
+import torch
 
 def mixup(batch1, batch2, alpha = 0.5):
     ''' We want to combine batch1 and batch2 into the mixuped version: lambda * batch1 + (1-lambda) * batch2
@@ -23,4 +24,20 @@ def mixup(batch1, batch2, alpha = 0.5):
     We also need to update the first_history_index when we change the first non-NAN value through mixup.'''
     lam = None
     mixup_batch = None
+    (first_history_index1,
+         x_t1, y_t1, x_st_t1, y_st_t1,
+         neighbors_data_st1,
+         neighbors_edge_value1,
+         robot_traj_st_t1,
+         map1) = batch1
+    (first_history_index2,
+         x_t2, y_t2, x_st_t2, y_st_t2,
+         neighbors_data_st2,
+         neighbors_edge_value2,
+         robot_traj_st_t2,
+         map2) = batch2
+    print(first_history_index1.size(), first_history_index2.size())
+    combined_first_history_index = None
+    import sys
+    sys.exit()
     return mixup_batch, lam
