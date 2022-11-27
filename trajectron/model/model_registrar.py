@@ -53,7 +53,7 @@ class ModelRegistrar(nn.Module):
     def save_models(self, curr_iter):
         # Create the model directiory if it's not present.
         save_path = os.path.join(self.model_dir,
-                                 'model_registrar-%d.pt' % curr_iter)
+                                 f'model_registrar-{curr_iter}.pt')
 
         torch.save(self.model_dict, save_path)
 
@@ -61,7 +61,7 @@ class ModelRegistrar(nn.Module):
         self.model_dict.clear()
         
         save_path = os.path.join(self.model_dir,
-                                 'model_registrar-%d.pt' % iter_num)
+                                 f'model_registrar-{iter_num}.pt')
 
         print('')
         print('Loading from ' + save_path)

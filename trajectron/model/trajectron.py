@@ -103,7 +103,7 @@ class Trajectron(object):
          neighbors_edge_value,
          robot_traj_st_t,
          map) = batch
-
+    
         x = x_t.to(self.device)
         y = y_t.to(self.device)
         x_st_t = x_st_t.to(self.device)
@@ -112,7 +112,11 @@ class Trajectron(object):
             robot_traj_st_t = robot_traj_st_t.to(self.device)
         if type(map) == torch.Tensor:
             map = map.to(self.device)
-
+        # restore the data into dict if not restored yet (only used for non-mixup)
+        if type(neighbors_data_st) is bytes:
+            neighbors_data_st = restore(neighbors_data_st)
+        if type(neighbors_edge_value) is bytes:
+            neighbors_edge_value = restore(neighbors_edge_value)
         # Run forward pass
         model = self.node_models_dict[node_type]
         nll = model.eval_loss(inputs=x,
@@ -120,8 +124,8 @@ class Trajectron(object):
                               first_history_indices=first_history_index,
                               labels=y,
                               labels_st=y_st_t,
-                              neighbors=restore(neighbors_data_st),
-                              neighbors_edge_value=restore(neighbors_edge_value),
+                              neighbors=neighbors_data_st,
+                              neighbors_edge_value=neighbors_edge_value,
                               robot=robot_traj_st_t,
                               map=map,
                               prediction_horizon=self.ph)

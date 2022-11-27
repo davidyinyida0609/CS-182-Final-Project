@@ -241,6 +241,7 @@ def main():
     #################################
     #           TRAINING            #
     #################################
+    minADE = float("inf")
     curr_iter_node_type = {node_type: 0 for node_type in train_data_loader.keys()}
     for epoch in range(1, args.train_epochs + 1):
         model_registrar.to(args.device)
@@ -364,6 +365,7 @@ def main():
             model_registrar.to(args.eval_device)
             with torch.no_grad():
                 # Calculate evaluation loss
+                all_loss = []
                 for node_type, data_loader in eval_data_loader.items():
                     eval_loss = []
                     print(f"Starting Evaluation @ epoch {epoch} for node type: {node_type}")
@@ -372,6 +374,7 @@ def main():
                         eval_loss_node_type = eval_trajectron.eval_loss(batch, node_type)
                         pbar.set_description(f"Epoch {epoch}, {node_type} L: {eval_loss_node_type.item():.2f}")
                         eval_loss.append({node_type: {'nll': [eval_loss_node_type]}})
+                        all_loss.append(eval_loss_node_type.item())
                         del batch
 
                     evaluation.log_batch_errors(eval_loss,
@@ -405,33 +408,11 @@ def main():
                                             bar_plot=['kde'],
                                             box_plot=['ade', 'fde'])
 
-                # Predict maximum likelihood batch timesteps for evaluation dataset evaluation
-                eval_batch_errors_ml = []
-                for scene in tqdm(eval_scenes, desc='MM Evaluation', ncols=80):
-                    timesteps = scene.sample_timesteps(scene.timesteps)
-
-                    predictions = eval_trajectron.predict(scene,
-                                                          timesteps,
-                                                          ph,
-                                                          num_samples=1,
-                                                          min_future_timesteps=ph,
-                                                          z_mode=True,
-                                                          gmm_mode=True,
-                                                          full_dist=False)
-
-                    eval_batch_errors_ml.append(evaluation.compute_batch_statistics(predictions,
-                                                                                    scene.dt,
-                                                                                    max_hl=max_hl,
-                                                                                    ph=ph,
-                                                                                    map=scene.map,
-                                                                                    node_type_enum=eval_env.NodeType,
-                                                                                    kde=False))
-
-                evaluation.log_batch_errors(eval_batch_errors_ml,
-                                            log_writer,
-                                            'eval/ml',
-                                            epoch)
-
+                # save the model if the validation loss is lowewr than the minimum we have seen
+                mean_loss = sum(all_loss) / len(all_loss)
+                if minADE > mean_loss:
+                    mean_loss = minADE
+                    model_registrar.save_models("lowest_eval_loss")
         if args.save_every is not None and args.debug is False and epoch % args.save_every == 0:
             model_registrar.save_models(epoch)
 
