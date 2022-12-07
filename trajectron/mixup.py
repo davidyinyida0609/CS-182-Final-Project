@@ -27,7 +27,7 @@ def mixup(batch, dist = np.random.beta, alpha = 0.5):
      batch_size = first_history_index.size(0)
      # Sample lambda from predefined distribution
      # We need to cast it into float
-     lam = torch.tensor(dist(alpha, alpha, size = (batch_size, 1, 1))).float()
+     lam = torch.tensor(np.random.uniform(size = (batch_size, 1, 1))).float()
      # Sample permuted indicies
      indices = torch.randperm(batch_size)
 

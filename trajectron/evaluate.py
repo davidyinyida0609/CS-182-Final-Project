@@ -21,11 +21,8 @@ if torch.cuda.is_available():
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", help="model full path", type=str)
-parser.add_argument("--checkpoint", help="model checkpoint to evaluate", type=int)
+parser.add_argument("--checkpoint", help="model checkpoint to evaluate", type=str)
 parser.add_argument("--data", help="full path to data file", type=str)
-parser.add_argument("--output_path", help="path to output csv file", type=str)
-parser.add_argument("--output_tag", help="name tag for output file", type=str)
-parser.add_argument("--node_type", help="node type to evaluate", type=str)
 args = parser.parse_args()
 
 
@@ -63,46 +60,158 @@ if __name__ == "__main__":
 
     ph = hyperparams['prediction_horizon']
     max_hl = hyperparams['maximum_history_length']
-
     with torch.no_grad():
-        for num in [20]:
-            print(f"-- Evaluating best of {num}")
-            ############### BEST OF 20 ###############
-            eval_ade_batch_errors = np.array([])
-            eval_fde_batch_errors = np.array([])
-            
-            for i, scene in enumerate(scenes):
-                print(f"---- Evaluating Scene {i + 1}/{len(scenes)}")
-                for t in tqdm(range(0, scene.timesteps, 10)):
-                    timesteps = np.arange(t, t + 10)
-                    predictions = eval_stg.predict(scene,
-                                                timesteps,
-                                                ph,
-                                                num_samples=num,
-                                                min_history_timesteps=7,
-                                                min_future_timesteps=12,
-                                                z_mode=False,
-                                                gmm_mode=False,
-                                                full_dist=False)
+        ############### MOST LIKELY ###############
+        eval_ade_batch_errors = np.array([])
+        eval_fde_batch_errors = np.array([])
+        print("-- Evaluating GMM Grid Sampled (Most Likely)")
+        for i, scene in enumerate(scenes):
+            print(f"---- Evaluating Scene {i + 1}/{len(scenes)}")
+            timesteps = np.arange(scene.timesteps)
 
-                    if not predictions:
-                        continue
+            predictions = eval_stg.predict(scene,
+                                           timesteps,
+                                           ph,
+                                           num_samples=1,
+                                           min_history_timesteps=7,
+                                           min_future_timesteps=12,
+                                           z_mode=False,
+                                           gmm_mode=True,
+                                           full_dist=True)  # This will trigger grid sampling
 
-                    batch_error_dict = evaluation.compute_batch_statistics(predictions,
-                                                                        scene.dt,
-                                                                        max_hl=max_hl,
-                                                                        ph=ph,
-                                                                        node_type_enum=env.NodeType,
-                                                                        map=None,
-                                                                        best_of=True,
-                                                                        prune_ph_to_future=True)
-                    for k in batch_error_dict:
-                        eval_ade_batch_errors = np.hstack((eval_ade_batch_errors, batch_error_dict[k]['ade']))
-                        eval_fde_batch_errors = np.hstack((eval_fde_batch_errors, batch_error_dict[k]['fde']))
+            batch_error_dict = evaluation.compute_batch_statistics(predictions,
+                                                                   scene.dt,
+                                                                   max_hl=max_hl,
+                                                                   ph=ph,
+                                                                   node_type_enum=env.NodeType,
+                                                                   map=None,
+                                                                   prune_ph_to_future=True,
+                                                                   kde=False)
 
-            mean_ade = np.mean(eval_ade_batch_errors)
-            mean_fde = np.mean(eval_fde_batch_errors)
-            metric = {"minADE": mean_ade, "minFDE": mean_fde}
-            path = os.path.join(args.model, f"best_of_{num}_metrics.json")
-            with open(path, 'w') as f:
-                json.dump(metric, f)
+            for k in batch_error_dict:
+                eval_ade_batch_errors = np.hstack((eval_ade_batch_errors, batch_error_dict[k]['ade']))
+                eval_fde_batch_errors = np.hstack((eval_fde_batch_errors, batch_error_dict[k]['fde']))
+        meanADE = np.mean(eval_ade_batch_errors)
+        meanFDE = np.mean(eval_fde_batch_errors)
+        medianADE = np.median(eval_ade_batch_errors)
+        medianFDE = np.median(eval_fde_batch_errors)
+        with open(os.path.join(args.model, "most_likely.json"), "w") as a:
+            json.dump({"meanADE": meanADE, "meanFDE": meanFDE, "medianADE": medianADE, "medianFDE": medianFDE}, a)
+
+        ############### MODE Z ###############
+        eval_ade_batch_errors = np.array([])
+        eval_fde_batch_errors = np.array([])
+        eval_kde_nll = np.array([])
+        print("-- Evaluating Mode Z")
+        for i, scene in enumerate(scenes):
+            print(f"---- Evaluating Scene {i+1}/{len(scenes)}")
+            for t in tqdm(range(0, scene.timesteps, 10)):
+                timesteps = np.arange(t, t + 10)
+                predictions = eval_stg.predict(scene,
+                                               timesteps,
+                                               ph,
+                                               num_samples=2000,
+                                               min_history_timesteps=7,
+                                               min_future_timesteps=12,
+                                               z_mode=True,
+                                               full_dist=False)
+
+                if not predictions:
+                    continue
+
+                batch_error_dict = evaluation.compute_batch_statistics(predictions,
+                                                                       scene.dt,
+                                                                       max_hl=max_hl,
+                                                                       ph=ph,
+                                                                       node_type_enum=env.NodeType,
+                                                                       map=None,
+                                                                       prune_ph_to_future=True)
+                for k in batch_error_dict:
+                    eval_ade_batch_errors = np.hstack((eval_ade_batch_errors, batch_error_dict[k]['ade']))
+                    eval_fde_batch_errors = np.hstack((eval_fde_batch_errors, batch_error_dict[k]['fde']))
+        meanADE = np.mean(eval_ade_batch_errors)
+        meanFDE = np.mean(eval_fde_batch_errors)
+        medianADE = np.median(eval_ade_batch_errors)
+        medianFDE = np.median(eval_fde_batch_errors)
+        with open(os.path.join(args.model, "mode_z.json"), "w") as a:
+            json.dump({"meanADE": meanADE, "meanFDE": meanFDE, "medianADE": medianADE, "medianFDE": medianFDE}, a)
+
+        print(f"-- Evaluating best of 20")
+        ############### BEST OF 20 ###############
+        eval_ade_batch_errors = np.array([])
+        eval_fde_batch_errors = np.array([])
+        
+        for i, scene in enumerate(scenes):
+            print(f"---- Evaluating Scene {i + 1}/{len(scenes)}")
+            for t in tqdm(range(0, scene.timesteps, 10)):
+                timesteps = np.arange(t, t + 10)
+                predictions = eval_stg.predict(scene,
+                                            timesteps,
+                                            ph,
+                                            num_samples=20,
+                                            min_history_timesteps=7,
+                                            min_future_timesteps=12,
+                                            z_mode=False,
+                                            gmm_mode=False,
+                                            full_dist=False)
+
+                if not predictions:
+                    continue
+
+                batch_error_dict = evaluation.compute_batch_statistics(predictions,
+                                                                    scene.dt,
+                                                                    max_hl=max_hl,
+                                                                    ph=ph,
+                                                                    node_type_enum=env.NodeType,
+                                                                    map=None,
+                                                                    best_of=True,
+                                                                    prune_ph_to_future=True)
+                for k in batch_error_dict:
+                    eval_ade_batch_errors = np.hstack((eval_ade_batch_errors, batch_error_dict[k]['ade']))
+                    eval_fde_batch_errors = np.hstack((eval_fde_batch_errors, batch_error_dict[k]['fde']))
+        meanADE = np.mean(eval_ade_batch_errors)
+        meanFDE = np.mean(eval_fde_batch_errors)
+        medianADE = np.median(eval_ade_batch_errors)
+        medianFDE = np.median(eval_fde_batch_errors)
+        with open(os.path.join(args.model, "best_of_20.json"), "w") as a:
+            json.dump({"meanADE": meanADE, "meanFDE": meanFDE, "medianADE": medianADE, "medianFDE": medianFDE}, a)
+        
+        
+        ############### FULL ###############
+        eval_ade_batch_errors = np.array([])
+        eval_fde_batch_errors = np.array([])
+        eval_kde_nll = np.array([])
+        print("-- Evaluating Full")
+        for i, scene in enumerate(scenes):
+            print(f"---- Evaluating Scene {i + 1}/{len(scenes)}")
+            for t in tqdm(range(0, scene.timesteps, 10)):
+                timesteps = np.arange(t, t + 10)
+                predictions = eval_stg.predict(scene,
+                                               timesteps,
+                                               ph,
+                                               num_samples=2000,
+                                               min_history_timesteps=7,
+                                               min_future_timesteps=12,
+                                               z_mode=False,
+                                               gmm_mode=False,
+                                               full_dist=False)
+
+                if not predictions:
+                    continue
+
+                batch_error_dict = evaluation.compute_batch_statistics(predictions,
+                                                                       scene.dt,
+                                                                       max_hl=max_hl,
+                                                                       ph=ph,
+                                                                       node_type_enum=env.NodeType,
+                                                                       map=None,
+                                                                       prune_ph_to_future=True)
+                for k in batch_error_dict:
+                    eval_ade_batch_errors = np.hstack((eval_ade_batch_errors, batch_error_dict[k]['ade']))
+                    eval_fde_batch_errors = np.hstack((eval_fde_batch_errors, batch_error_dict[k]['fde']))
+        meanADE = np.mean(eval_ade_batch_errors)
+        meanFDE = np.mean(eval_fde_batch_errors)
+        medianADE = np.median(eval_ade_batch_errors)
+        medianFDE = np.median(eval_fde_batch_errors)
+        with open(os.path.join(args.model, "full_dist.json"), "w") as a:
+            json.dump({"meanADE": meanADE, "meanFDE": meanFDE, "medianADE": medianADE, "medianFDE": medianFDE}, a)

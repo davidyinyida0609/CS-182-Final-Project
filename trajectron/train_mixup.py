@@ -94,8 +94,7 @@ def main():
     model_dir = None
     if not args.debug:
         # Create the log and model directiory if they're not present.
-        model_dir = os.path.join(args.log_dir,
-                                 'models_' + time.strftime('%d_%b_%Y_%H_%M_%S', time.localtime()) + args.log_tag)
+        model_dir = os.path.join(args.log_dir, args.log_tag)
         pathlib.Path(model_dir).mkdir(parents=True, exist_ok=True)
 
         # Save config to model directory
@@ -242,7 +241,6 @@ def main():
     #################################
     #           TRAINING            #
     #################################
-    minADE = float("inf")
     curr_iter_node_type = {node_type: 0 for node_type in train_data_loader.keys()}
     for epoch in range(1, args.train_epochs + 1):
         model_registrar.to(args.device)
@@ -371,7 +369,6 @@ def main():
             model_registrar.to(args.eval_device)
             with torch.no_grad():
                 # Calculate evaluation loss
-                all_loss = []
                 for node_type, data_loader in eval_data_loader.items():
                     eval_loss = []
                     print(f"Starting Evaluation @ epoch {epoch} for node type: {node_type}")
@@ -380,7 +377,6 @@ def main():
                         eval_loss_node_type = eval_trajectron.eval_loss(batch, node_type)
                         pbar.set_description(f"Epoch {epoch}, {node_type} L: {eval_loss_node_type.item():.2f}")
                         eval_loss.append({node_type: {'nll': [eval_loss_node_type]}})
-                        all_loss.append(eval_loss_node_type.item())
                         del batch
 
                     evaluation.log_batch_errors(eval_loss,
@@ -414,11 +410,6 @@ def main():
                                             bar_plot=['kde'],
                                             box_plot=['ade', 'fde'])
 
-                # save the model if the validation loss is lowewr than the minimum we have seen
-                mean_loss = sum(all_loss) / len(all_loss)
-                if minADE > mean_loss:
-                    mean_loss = minADE
-                    model_registrar.save_models("lowest_eval_loss")
         if args.save_every is not None and args.debug is False and epoch % args.save_every == 0:
             model_registrar.save_models(epoch)
 

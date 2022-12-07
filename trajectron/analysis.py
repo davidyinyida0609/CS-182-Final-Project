@@ -6,31 +6,29 @@ import json
 import pandas as pd
 model_dir = args.log_dir
 flag = model_dir != 'baseline'
-columns = ['name', "minADE", "minFDE"]
+modes = set(['most_likely', 'mode_z', 'best_of_20', 'full_dist'])
+columns = ['name', "meanADE", "meanFDE", "medianADE", "medianFDE"]
 data_names = set(['hotel', 'univ', 'zara1', 'zara2', 'eth'])
-keys = set(["20"])
-metrics = {k: {name: list() for name in columns} for k in keys}
+metrics = {mode: {name: list() for name in columns} for mode in modes}
 for dirpath, dirnames, filenames in os.walk(model_dir):
     for filename in filenames:
         if filename[-4:] != "json":
             continue
-        info = filename.split('_')
-        if len(info) != 4:
+        mode = filename.split(os.sep)[-1][:-5]
+        if mode not in modes:
             continue
-        key = info[2]
-        assert key in keys
         file_path = os.path.join(dirpath, filename)
         with open(file_path, 'r') as f:
             metric = json.load(f)
-        name = dirpath.split('/')[-1]
+        name = dirpath.split(os.sep)[-1]
         metric['name'] = name
         for k in columns:
-            metrics[key][k].append(metric[k])
-for key in metrics:
-    df = pd.DataFrame(metrics[key])
+            metrics[mode][k].append(metric[k])
+for mode in metrics:
+    df = pd.DataFrame(metrics[mode])
     from IPython.display import display
     display(df)
-    df.to_csv(os.path.join(model_dir, f'best_of_{key}.csv'), index=False)
+    df.to_csv(os.path.join(model_dir, f'{mode}.csv'), index=False)
 
     
     
