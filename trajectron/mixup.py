@@ -2,9 +2,9 @@ import torch
 import numpy as np
 from model.dataset import*
 
-def mixup(batch, dist = np.random.beta, alpha = 0.5):
+def mixup(batch, dist = np.random.beta):
      ''' We want to combine batch and permuted_batch into the mixuped version: lambda * batch + (1-lambda) * permuted_batch
-     lambda follows a predetermined beta distribution beta(alpha, alpha).
+     lambda follows a predetermined distribution either uniform or beta.
 
      When we mixup two things, we need to consider both possible NAN values:
      1. if both are NAN, just leave it
@@ -27,7 +27,7 @@ def mixup(batch, dist = np.random.beta, alpha = 0.5):
      batch_size = first_history_index.size(0)
      # Sample lambda from predefined distribution
      # We need to cast it into float
-     lam = torch.tensor(np.random.uniform(size = (batch_size, 1, 1))).float()
+     lam = torch.tensor(dist((batch_size, 1, 1))).float()
      # Sample permuted indicies
      indices = torch.randperm(batch_size)
 

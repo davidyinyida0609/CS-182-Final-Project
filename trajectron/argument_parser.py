@@ -134,6 +134,10 @@ parser.add_argument("--train_epochs",
                     help="number of iterations to train for",
                     type=int,
                     default=1)
+parser.add_argument("--dist",
+                    help="the distribution of mixup",
+                    type=str,
+                    default="beta")
 
 parser.add_argument('--batch_size',
                     help='training batch size',

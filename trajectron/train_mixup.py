@@ -224,6 +224,13 @@ def main():
         eval_trajectron.set_annealing_params()
     print('Created Evaluation Model.')
 
+    # create distribution
+    if args.dist == "uniform":
+        dist = lambda x: np.random.uniform(size = x)
+    elif args.dist == "beta":
+        dist = lambda x:np.random.beta(0.5, 0.5,size = x)
+    else:
+        raise AssertionError("No input distribution. Have to be either uniform or beta")
     optimizer = dict()
     lr_scheduler = dict()
     for node_type in train_env.NodeType:
@@ -254,7 +261,7 @@ def main():
                 trajectron.step_annealers(node_type)
                 optimizer[node_type].zero_grad()
                 # TODO for implementing mixup
-                mixed_up_batch, lams = mixup(batch)
+                mixed_up_batch, lams = mixup(batch, dist)
                 
                 train_loss = trajectron.train_loss(mixed_up_batch, node_type)
                 log_writer.add_histogram("lambda_distribution", lams.reshape(-1), curr_iter)

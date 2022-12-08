@@ -6,8 +6,8 @@ import json
 import pandas as pd
 model_dir = args.log_dir
 flag = model_dir != 'baseline'
-modes = set(['most_likely', 'mode_z', 'best_of_20', 'full_dist'])
-columns = ['name', "meanADE", "meanFDE", "medianADE", "medianFDE"]
+modes = set(['best_of_20'])
+columns = ['name', "meanADE", "meanFDE"]
 data_names = set(['hotel', 'univ', 'zara1', 'zara2', 'eth'])
 metrics = {mode: {name: list() for name in columns} for mode in modes}
 for dirpath, dirnames, filenames in os.walk(model_dir):
@@ -27,6 +27,7 @@ for dirpath, dirnames, filenames in os.walk(model_dir):
 for mode in metrics:
     df = pd.DataFrame(metrics[mode])
     from IPython.display import display
+    print(f"The result of the model under the folder {model_dir} is shown as follows:")
     display(df)
     df.to_csv(os.path.join(model_dir, f'{mode}.csv'), index=False)
 
